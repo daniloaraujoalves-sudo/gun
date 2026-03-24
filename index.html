@@ -2,9 +2,9 @@
 <html lang="pt-br">
 <head>
   <meta charset="utf-8">
-  <title>Jogo 3D - Terceira Pessoa com Céu e Boost (Caps Lock)</title>
+  <title>Jogo 3D - Câmera 360° com Mouse</title>
   <style>
-    body { margin: 0; overflow: hidden; background: #000; }
+    body { margin: 0; overflow: hidden; background: #000; cursor: none; }
     #info {
       position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.7);
       padding: 15px; border-radius: 8px; font-family: Arial, sans-serif; z-index: 100;
@@ -13,20 +13,16 @@
 </head>
 <body>
   <div id="info">
-    WASD ou Setas ←↑→↓ para mover<br>
-    <strong>CAPS LOCK</strong> = Turbo (mais rápido)<br>
-    Céu atualizado!
+    WASD ou Setas = Mover<br>
+    CAPS LOCK = Turbo (mais rápido)<br>
+    Mouse = Girar câmera 360° livremente
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
   <script>
     const scene = new THREE.Scene();
-
-    // ====================== CÉU BONITO ======================
-    scene.background = new THREE.Color(0x88aaff); // azul mais bonito
-
-    // Adiciona uma névoa suave (fica mais atmosférico)
-    scene.fog = new THREE.Fog(0x88aaff, 100, 400);
+    scene.background = new THREE.Color(0x88aaff);
+    scene.fog = new THREE.Fog(0x88aaff, 100, 450);
 
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -34,18 +30,15 @@
     document.body.appendChild(renderer.domElement);
 
     // Luzes
-    scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+    scene.add(new THREE.AmbientLight(0xffffff, 0.9));
     const dirLight = new THREE.DirectionalLight(0xffffff, 1.4);
     dirLight.position.set(50, 120, 80);
     scene.add(dirLight);
 
-    // === CHÃO COM TEXTURA DE ESTRADA (a que você pediu) ===
+    // Chão com textura de estrada
     const textureLoader = new THREE.TextureLoader();
-    const groundTexture = textureLoader.load(
-      "https://img.freepik.com/fotos-gratis/textura-da-estrada-preto_1160-806.jpg?semt=ais_hybrid&w=740&q=80"
-    );
-    groundTexture.wrapS = THREE.RepeatWrapping;
-    groundTexture.wrapT = THREE.RepeatWrapping;
+    const groundTexture = textureLoader.load("https://img.freepik.com/fotos-gratis/textura-da-estrada-preto_1160-806.jpg?semt=ais_hybrid&w=740&q=80");
+    groundTexture.wrapS = groundTexture.wrapT = THREE.RepeatWrapping;
     groundTexture.repeat.set(30, 30);
 
     const ground = new THREE.Mesh(
@@ -84,34 +77,35 @@
     // ====================== CONTROLES ======================
     const keys = {};
     let isCapsLock = false;
+    let yaw = 0;        // rotação horizontal da câmera
+    let pitch = -15;    // inclinação vertical da câmera (graus)
 
     window.addEventListener('keydown', e => {
       keys[e.key.toLowerCase()] = true;
-      if (e.getModifierState && e.getModifierState('CapsLock')) {
-        isCapsLock = true;
-      }
+      if (e.getModifierState && e.getModifierState('CapsLock')) isCapsLock = true;
     });
 
     window.addEventListener('keyup', e => {
       keys[e.key.toLowerCase()] = false;
-      if (e.getModifierState && !e.getModifierState('CapsLock')) {
-        isCapsLock = false;
-      }
+      if (e.getModifierState && !e.getModifierState('CapsLock')) isCapsLock = false;
+    });
+
+    // Controle do mouse (360°)
+    let isMouseDown = false;
+    document.addEventListener('mousedown', () => isMouseDown = true);
+    document.addEventListener('mouseup', () => isMouseDown = false);
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isMouseDown) return;
+      yaw -= e.movementX * 0.2;     // sensibilidade horizontal
+      pitch -= e.movementY * 0.15;  // sensibilidade vertical
+      pitch = Math.max(-60, Math.min(60, pitch)); // limita o olhar para cima/baixo
     });
 
     const normalSpeed = 0.35;
-    const boostSpeed = 0.75;
+    const boostSpeed = 0.78;
 
-    function updateCamera() {
-      const offset = new THREE.Vector3(0, 12, 25);
-      offset.applyQuaternion(player.quaternion);
-      camera.position.copy(player.position).add(offset);
-      camera.lookAt(player.position.x, player.position.y + 3, player.position.z);
-    }
-
-    function animate() {
-      requestAnimationFrame(animate);
-
+    function updateMovement() {
       const currentSpeed = isCapsLock ? boostSpeed : normalSpeed;
 
       let dx = 0, dz = 0;
@@ -124,26 +118,29 @@
         const len = Math.hypot(dx, dz);
         dx /= len; dz /= len;
 
-        player.position.x += dx * currentSpeed;
-        player.position.z += dz * currentSpeed;
+        // Move o personagem na direção que ele está olhando (baseado na rotação yaw)
+        const moveAngle = yaw * Math.PI / 180;
+        player.position.x += (dx * Math.cos(moveAngle) - dz * Math.sin(moveAngle)) * currentSpeed;
+        player.position.z += (dx * Math.sin(moveAngle) + dz * Math.cos(moveAngle)) * currentSpeed;
 
-        player.lookAt(player.position.x + dx, player.position.y, player.position.z + dz);
+        // Faz o personagem olhar para a direção do movimento
+        player.lookAt(
+          player.position.x + (dx * Math.cos(moveAngle) - dz * Math.sin(moveAngle)),
+          player.position.y,
+          player.position.z + (dx * Math.sin(moveAngle) + dz * Math.cos(moveAngle))
+        );
       }
-
-      updateCamera();
-      renderer.render(scene, camera);
     }
 
-    camera.position.set(0, 20, 40);
-    updateCamera();
-    animate();
+    function updateCamera() {
+      const distance = 28;
+      const height = 12;
 
-    // Responsivo
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
-  </script>
-</body>
-</html>
+      const radYaw = yaw * Math.PI / 180;
+      const radPitch = pitch * Math.PI / 180;
+
+      camera.position.x = player.position.x - distance * Math.sin(radYaw) * Math.cos(radPitch);
+      camera.position.z = player.position.z - distance * Math.cos(radYaw) * Math.cos(radPitch);
+      camera.position.y = player.position.y + height + distance * Math.sin(radPitch);
+
+      camera.lookAt(player.position.x,
