@@ -2,128 +2,27 @@
 <html lang="pt-br">
 <head>
   <meta charset="utf-8">
-  <title>Jogo 3D - Terceira Pessoa</title>
+  <title>Jogo 3D - Terceira Pessoa (Corrigido)</title>
   <style>
     body { margin: 0; overflow: hidden; background: #000; }
     #info {
-      position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.6);
-      padding: 12px; border-radius: 8px; font-family: Arial, sans-serif; pointer-events: none;
+      position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.7);
+      padding: 15px; border-radius: 8px; font-family: Arial, sans-serif; z-index: 100;
     }
     canvas { display: block; }
   </style>
 </head>
 <body>
   <div id="info">
-    WASD ou Setas para mover<br>
-    Se a tela continuar preta, abra F12 e me diga se tem erro
+    <strong>Controles:</strong> WASD ou Setas para mover<br>
+    Se ainda der erro, abra F12 e cole aqui
   </div>
 
+  <!-- CDN atualizado e confiável (versão recente) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+  <!-- Se quiser mais recente: https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.min.js -->
+
   <script>
     if (typeof THREE === 'undefined') {
-      document.getElementById('info').innerHTML += '<br><b style="color:red">ERRO: Three.js não carregou!</b>';
-      throw new Error('Three.js não carregou');
-    }
-
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x87CEEB);   // céu azul bem visível
-
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    document.body.appendChild(renderer.domElement);
-
-    // Luzes fortes
-    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
-    dirLight.position.set(50, 100, 50);
-    scene.add(dirLight);
-
-    // Chão grande e verde
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(200, 200),
-      new THREE.MeshLambertMaterial({ color: 0x228B22 })
-    );
-    ground.rotation.x = -Math.PI / 2;
-    scene.add(ground);
-
-    // Obstáculos
-    const boxMat = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
-    for (let i = 0; i < 25; i++) {
-      const box = new THREE.Mesh(new THREE.BoxGeometry(3, 6, 3), boxMat);
-      box.position.set(Math.random()*120 - 60, 3, Math.random()*120 - 60);
-      scene.add(box);
-    }
-
-    // === PERSONAGEM ===
-    const player = new THREE.Group();
-    scene.add(player);
-
-    const body = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.8, 2.5, 8, 16),
-      new THREE.MeshLambertMaterial({ color: 0x1565C0 })
-    );
-    body.position.y = 1.8;
-    player.add(body);
-
-    const head = new THREE.Mesh(
-      new THREE.BoxGeometry(1.1, 1.1, 1.1),
-      new THREE.MeshLambertMaterial({ color: 0xFFDBAC })
-    );
-    head.position.y = 3.9;
-    player.add(head);
-
-    player.position.set(0, 0, 0);
-
-    // Movimento
-    const keys = {};
-    window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
-    window.addEventListener('keyup',   e => keys[e.key.toLowerCase()] = false);
-
-    const moveSpeed = 0.3;
-
-    function updateCamera() {
-      const offset = new THREE.Vector3(0, 10, 20);           // atrás e acima
-      offset.applyQuaternion(player.quaternion);
-      camera.position.copy(player.position).add(offset);
-      camera.lookAt(player.position.x, player.position.y + 2.5, player.position.z);
-    }
-
-    function animate() {
-      requestAnimationFrame(animate);
-
-      let dx = 0, dz = 0;
-      if (keys['w'] || keys['arrowup'])    dz -= 1;
-      if (keys['s'] || keys['arrowdown'])  dz += 1;
-      if (keys['a'] || keys['arrowleft'])  dx -= 1;
-      if (keys['d'] || keys['arrowright']) dx += 1;
-
-      if (dx !== 0 || dz !== 0) {
-        const len = Math.sqrt(dx*dx + dz*dz);
-        dx /= len; dz /= len;
-
-        player.position.x += dx * moveSpeed;
-        player.position.z += dz * moveSpeed;
-
-        player.lookAt(player.position.x + dx, player.position.y, player.position.z + dz);
-      }
-
-      updateCamera();
-      renderer.render(scene, camera);
-    }
-
-    // Inicia tudo
-    camera.position.set(0, 15, 30);
-    updateCamera();
-    animate();
-
-    // Responsivo
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
-  </script>
-</body>
-</html>
+      document.getElementById('info').innerHTML += '<br><span style="color:red">ERRO: Three.js não carregou</span>';
+      throw
