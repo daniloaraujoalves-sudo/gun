@@ -2,27 +2,104 @@
 <html lang="pt-br">
 <head>
   <meta charset="utf-8">
-  <title>Jogo 3D - Terceira Pessoa (Corrigido)</title>
+  <title>Teste 3D Simples - Tela Preta Corrigida</title>
   <style>
     body { margin: 0; overflow: hidden; background: #000; }
     #info {
-      position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.7);
-      padding: 15px; border-radius: 8px; font-family: Arial, sans-serif; z-index: 100;
+      position: absolute; top: 10px; left: 10px; color: #0f0; background: rgba(0,0,0,0.8);
+      padding: 15px; border-radius: 8px; font-family: Arial; z-index: 100;
     }
-    canvas { display: block; }
   </style>
 </head>
 <body>
   <div id="info">
-    <strong>Controles:</strong> WASD ou Setas para mover<br>
-    Se ainda der erro, abra F12 e cole aQui
+    Teste simples de Three.js<br>
+    Se continuar preto → pressione F12 e cole o erro aqui
   </div>
 
-  <!-- CDN atualizado e confiável (versão recente) -->
+  <!-- CDN mais estável possível (versão r134 - funciona em quase todos os navegadores) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-  <!-- Se quiser mais recente: https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.min.js -->
 
   <script>
-    if (typeof THREE === 'undefined') {
-      document.getElementById('info').innerHTML += '<br><span style="color:red">ERRO: Three.js não carregou</span>';
-      throw
+    // Verificação de carregamento
+    if (typeof THREE === "undefined") {
+      document.getElementById("info").innerHTML += '<br><span style="color:red">ERRO: Three.js não carregou do CDN!</span>';
+      alert("Three.js não carregou! Verifique sua internet ou tente outro navegador.");
+    } else {
+      document.getElementById("info").innerHTML += '<br><span style="color:lime">Three.js carregado com sucesso!</span>';
+    }
+
+    // Cena
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87CEEB);   // céu azul bem claro
+
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    document.body.appendChild(renderer.domElement);
+
+    // Luz forte
+    scene.add(new THREE.AmbientLight(0xffffff, 1));
+    const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+    sun.position.set(50, 100, 50);
+    scene.add(sun);
+
+    // Chão grande e verde
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(200, 200),
+      new THREE.MeshLambertMaterial({ color: 0x00aa00 })
+    );
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+
+    // Um cubo vermelho gigante no centro (pra ter certeza que aparece)
+    const cube = new THREE.Mesh(
+      new THREE.BoxGeometry(5, 5, 5),
+      new THREE.MeshLambertMaterial({ color: 0xff0000 })
+    );
+    cube.position.y = 2.5;
+    scene.add(cube);
+
+    // Personagem simples (cilindro azul + cabeça)
+    const player = new THREE.Group();
+    scene.add(player);
+
+    const body = new THREE.Mesh(
+      new THREE.CylinderGeometry(1, 1, 4, 16),
+      new THREE.MeshLambertMaterial({ color: 0x0000ff })
+    );
+    body.position.y = 2;
+    player.add(body);
+
+    const head = new THREE.Mesh(
+      new THREE.SphereGeometry(1.2, 16, 16),
+      new THREE.MeshLambertMaterial({ color: 0xffddaa })
+    );
+    head.position.y = 5;
+    player.add(head);
+
+    player.position.set(0, 0, 0);
+
+    // Câmera inicial
+    camera.position.set(0, 15, 30);
+
+    // Loop
+    function animate() {
+      requestAnimationFrame(animate);
+      cube.rotation.y += 0.01;        // gira o cubo vermelho pra ver que está renderizando
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // Responsivo
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    console.log("✅ Cena iniciada! Se você vê céu azul + chão verde + cubo vermelho girando = sucesso!");
+  </script>
+</body>
+</html>
