@@ -320,3 +320,23 @@
   </script>
 </body>
 </html>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="utf-8">
+    <title>Mapa Estilo Valorant - Somente Cenário</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #0b131e; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+
+<script>
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0b131e);
+    scene.fog = new THREE.Fog(0x0b131e, 20, 400);
+
+    const camera = new THREE.PerspectiveCamera(75,
