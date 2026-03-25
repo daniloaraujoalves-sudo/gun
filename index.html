@@ -135,10 +135,10 @@
       let moveX = 0;  // direita/esquerda relativo à câmera
       let moveZ = 0;  // frente/trás relativo à câmera
 
-      if (keys['w'] || keys['arrowup'])    moveZ -= 1;
-      if (keys['s'] || keys['arrowdown'])  moveZ += 1;
-      if (keys['a'] || keys['arrowleft'])  moveX -= 1;
-      if (keys['d'] || keys['arrowright']) moveX += 1;
+      if (keys['s'] || keys['arrowup'])    moveZ -= 1;
+      if (keys['w'] || keys['arrowdown'])  moveZ += 1;
+      if (keys['d'] || keys['arrowleft'])  moveX -= 1;
+      if (keys['a'] || keys['arrowright']) moveX += 1;
 
       // Normaliza quando anda na diagonal
       if (moveX !== 0 && moveZ !== 0) {
