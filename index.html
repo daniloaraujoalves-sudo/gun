@@ -2,13 +2,31 @@
 <html lang="pt-br">
 <head>
   <meta charset="utf-8">
-  <title>Jogo 3D - Soldado com Animação de Andar</title>
+  <title>Jogo 3D - Soldado com Mini-Mapa</title>
   <style>
-    body { margin: 0; overflow: hidden; background: #000; cursor: none; }
+    body { 
+      margin: 0; 
+      overflow: hidden; 
+      background: #000; 
+      cursor: none; 
+    }
     #info {
       position: absolute; top: 10px; left: 10px; color: white; 
       background: rgba(0,0,0,0.75); padding: 15px; border-radius: 10px; 
       font-family: Arial, sans-serif; z-index: 100; user-select: none; line-height: 1.6;
+    }
+    #minimap {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      width: 200px;
+      height: 200px;
+      border: 3px solid rgba(255,255,255,0.6);
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.6);
+      overflow: hidden;
+      z-index: 100;
+      box-shadow: 0 0 15px rgba(0,0,0,0.8);
     }
     #crosshair {
       position: absolute; top: 50%; left: 50%; width: 18px; height: 18px;
@@ -28,15 +46,21 @@
     S / ↓ = Trás (vel 0.25)<br>
     A / ← = Lados (vel 0.4)<br>
     D / → = Lados (vel 0.4)<br>
-    Clique + Arrastar = Girar câmera<br>
-    O soldado agora anda com animação!
+    Clique + Arrastar = Girar câmera
   </div>
+
+  <!-- Mini-mapa -->
+  <div id="minimap">
+    <canvas id="mapCanvas" width="200" height="200"></canvas>
+  </div>
+
   <div id="crosshair"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/loaders/GLTFLoader.min.js"></script>
 
   <script>
+    // ==================== THREE.JS SETUP ====================
     const scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x88aaff, 0.0009);
 
@@ -94,7 +118,7 @@
       scene.add(box);
     }
 
-    // ===================== SOLDADO COM ANIMAÇÃO =====================
+    // ===================== SOLDADO =====================
     const player = new THREE.Group();
     scene.add(player);
 
@@ -104,35 +128,84 @@
     let isMoving = false;
 
     const loader = new THREE.GLTFLoader();
-
     loader.load('https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Soldier.glb', 
       (gltf) => {
         soldier = gltf.scene;
         soldier.scale.set(2.2, 2.2, 2.2);
         soldier.position.y = 0;
-
         soldier.traverse((child) => {
-          if (child.isMesh) {
-            child.castShadow = true;
-            child.receiveShadow = true;
-          }
+          if (child.isMesh) child.castShadow = child.receiveShadow = true;
         });
-
         player.add(soldier);
 
-        // Configura animações
         mixer = new THREE.AnimationMixer(soldier);
         const animations = gltf.animations;
-
-        walkAction = mixer.clipAction(animations.find(clip => clip.name === 'Walk') || animations[1]);
-        walkAction.setEffectiveWeight(1);
-        walkAction.setEffectiveTimeScale(1.2);   // velocidade da animação
+        walkAction = mixer.clipAction(animations.find(a => a.name === 'Walk') || animations[1]);
+        walkAction.setEffectiveTimeScale(1.2);
         walkAction.play();
-        walkAction.paused = true; // começa parado
-      },
-      undefined,
-      (err) => console.error('Erro ao carregar soldado:', err)
+        walkAction.paused = true;
+      }
     );
+
+    // ===================== MINI-MAPA =====================
+    const mapCanvas = document.getElementById('mapCanvas');
+    const ctx = mapCanvas.getContext('2d');
+    const mapSize = 200;
+    const worldSize = 800; // área visível no minimapa (±400 unidades)
+
+    function drawMinimap() {
+      ctx.clearRect(0, 0, mapSize, mapSize);
+
+      // Fundo do mapa
+      ctx.fillStyle = 'rgba(20, 40, 20, 0.8)';
+      ctx.fillRect(0, 0, mapSize, mapSize);
+
+      // Grade leve
+      ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+      ctx.lineWidth = 1;
+      for (let i = 1; i < 5; i++) {
+        const x = (mapSize / 5) * i;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, mapSize);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, x);
+        ctx.lineTo(mapSize, x);
+        ctx.stroke();
+      }
+
+      if (!soldier) return;
+
+      // Posição do jogador no minimapa
+      const mapX = mapSize / 2 + (player.position.x / worldSize) * mapSize;
+      const mapZ = mapSize / 2 + (player.position.z / worldSize) * mapSize;
+
+      // Desenha o soldado (ponto azul)
+      ctx.fillStyle = '#00aaff';
+      ctx.beginPath();
+      ctx.arc(mapX, mapZ, 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Seta indicando direção que o soldado está olhando
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(mapX, mapZ);
+
+      const dirX = Math.sin(soldier.rotation.y) * 18;
+      const dirZ = Math.cos(soldier.rotation.y) * 18;
+
+      ctx.lineTo(mapX + dirX, mapZ + dirZ);
+      ctx.stroke();
+
+      // Pequena borda ao redor do ponto
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(mapX, mapZ, 8, 0, Math.PI * 2);
+      ctx.stroke();
+    }
 
     // ===================== CONTROLES =====================
     const keys = {};
@@ -213,33 +286,28 @@
 
       camera.lookAt(player.position.x, player.position.y + 5, player.position.z);
 
-      // Soldado sempre olha para direção da câmera
       if (soldier) {
         soldier.rotation.y = cameraYaw * Math.PI / 180 + Math.PI;
       }
     }
 
-    // Atualiza animação
-    let clock = new THREE.Clock();
+    const clock = new THREE.Clock();
 
     function animate() {
       requestAnimationFrame(animate);
-      
       const delta = clock.getDelta();
 
       updateMovement();
       updateCamera();
 
-      // Controla animação de andar
       if (mixer && walkAction) {
         walkAction.paused = !isMoving;
-        if (isMoving) {
-          walkAction.setEffectiveTimeScale(currentSpeed * 1.8); // animação mais rápida quando anda mais
-        }
+        if (isMoving) walkAction.setEffectiveTimeScale(currentSpeed * 2.0);
         mixer.update(delta);
       }
 
       renderer.render(scene, camera);
+      drawMinimap();        // atualiza o mini-mapa a cada frame
     }
 
     animate();
