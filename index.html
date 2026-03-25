@@ -8,18 +8,21 @@
     #info {
       position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.7);
       padding: 15px; border-radius: 8px; font-family: Arial, sans-serif; z-index: 100;
+      user-select: none;
     }
+    canvas { display: block; }
   </style>
 </head>
 <body>
   <div id="info">
     WASD ou Setas = Mover<br>
     CAPS LOCK = Turbo (mais rápido)<br>
-    Mouse = Girar câmera 360° livremente
+    Clique e arraste o mouse = Girar câmera 360° livremente
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
   <script>
+    // =============== SETUP ===============
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x88aaff);
     scene.fog = new THREE.Fog(0x88aaff, 100, 450);
@@ -27,36 +30,49 @@
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
     document.body.appendChild(renderer.domElement);
 
     // Luzes
-    scene.add(new THREE.AmbientLight(0xffffff, 0.9));
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.4);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
     dirLight.position.set(50, 120, 80);
+    dirLight.castShadow = true;
     scene.add(dirLight);
 
-    // Chão com textura de estrada
+    // Chão
     const textureLoader = new THREE.TextureLoader();
     const groundTexture = textureLoader.load("https://img.freepik.com/fotos-gratis/textura-da-estrada-preto_1160-806.jpg?semt=ais_hybrid&w=740&q=80");
     groundTexture.wrapS = groundTexture.wrapT = THREE.RepeatWrapping;
-    groundTexture.repeat.set(30, 30);
+    groundTexture.repeat.set(40, 40);
 
     const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(400, 400),
+      new THREE.PlaneGeometry(500, 500),
       new THREE.MeshLambertMaterial({ map: groundTexture })
     );
     ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
     scene.add(ground);
 
     // Obstáculos
     const boxMat = new THREE.MeshLambertMaterial({ color: 0x444444 });
-    for (let i = 0; i < 25; i++) {
-      const box = new THREE.Mesh(new THREE.BoxGeometry(5, 6, 5), boxMat);
-      box.position.set(Math.random() * 200 - 100, 3, Math.random() * 200 - 100);
+    for (let i = 0; i < 30; i++) {
+      const size = Math.random() * 4 + 4;
+      const box = new THREE.Mesh(
+        new THREE.BoxGeometry(size, size * 1.4, size),
+        boxMat
+      );
+      box.position.set(
+        Math.random() * 280 - 140,
+        size * 0.7,
+        Math.random() * 280 - 140
+      );
+      box.castShadow = true;
+      box.receiveShadow = true;
       scene.add(box);
     }
 
-    // Personagem
+    // =============== PERSONAGEM ===============
     const player = new THREE.Group();
     scene.add(player);
 
@@ -65,48 +81,51 @@
       new THREE.MeshLambertMaterial({ color: 0x1565C0 })
     );
     body.position.y = 1.8;
+    body.castShadow = true;
     player.add(body);
 
     const head = new THREE.Mesh(
-      new THREE.SphereGeometry(0.9, 16, 16),
+      new THREE.SphereGeometry(0.9, 20, 20),
       new THREE.MeshLambertMaterial({ color: 0xFFDBAC })
     );
-    head.position.y = 3.9;
+    head.position.y = 4.0;
+    head.castShadow = true;
     player.add(head);
 
-    // ====================== CONTROLES ======================
+    // =============== CONTROLES ===============
     const keys = {};
     let isCapsLock = false;
-    let yaw = 0;        // rotação horizontal da câmera
-    let pitch = -15;    // inclinação vertical da câmera (graus)
+    let yaw = 0;      // rotação horizontal
+    let pitch = -15;  // inclinação vertical
 
     window.addEventListener('keydown', e => {
       keys[e.key.toLowerCase()] = true;
-      if (e.getModifierState && e.getModifierState('CapsLock')) isCapsLock = true;
+      if (e.getModifierState) isCapsLock = e.getModifierState('CapsLock');
     });
 
     window.addEventListener('keyup', e => {
       keys[e.key.toLowerCase()] = false;
-      if (e.getModifierState && !e.getModifierState('CapsLock')) isCapsLock = false;
+      if (e.getModifierState) isCapsLock = e.getModifierState('CapsLock');
     });
 
-    // Controle do mouse (360°)
+    // Mouse - clique e arraste para girar a câmera
     let isMouseDown = false;
     document.addEventListener('mousedown', () => isMouseDown = true);
     document.addEventListener('mouseup', () => isMouseDown = false);
+    document.addEventListener('mouseleave', () => isMouseDown = false);
 
     document.addEventListener('mousemove', (e) => {
       if (!isMouseDown) return;
-      yaw -= e.movementX * 0.2;     // sensibilidade horizontal
-      pitch -= e.movementY * 0.15;  // sensibilidade vertical
-      pitch = Math.max(-60, Math.min(60, pitch)); // limita o olhar para cima/baixo
+      yaw -= e.movementX * 0.25;
+      pitch -= e.movementY * 0.18;
+      pitch = Math.max(-65, Math.min(65, pitch)); // limita pitch
     });
 
     const normalSpeed = 0.35;
-    const boostSpeed = 0.78;
+    const boostSpeed = 0.85;
 
     function updateMovement() {
-      const currentSpeed = isCapsLock ? boostSpeed : normalSpeed;
+      const speed = isCapsLock ? boostSpeed : normalSpeed;
 
       let dx = 0, dz = 0;
       if (keys['w'] || keys['arrowup'])    dz -= 1;
@@ -116,31 +135,58 @@
 
       if (dx !== 0 || dz !== 0) {
         const len = Math.hypot(dx, dz);
-        dx /= len; dz /= len;
+        dx /= len;
+        dz /= len;
 
-        // Move o personagem na direção que ele está olhando (baseado na rotação yaw)
-        const moveAngle = yaw * Math.PI / 180;
-        player.position.x += (dx * Math.cos(moveAngle) - dz * Math.sin(moveAngle)) * currentSpeed;
-        player.position.z += (dx * Math.sin(moveAngle) + dz * Math.cos(moveAngle)) * currentSpeed;
+        const angle = yaw * Math.PI / 180;
 
-        // Faz o personagem olhar para a direção do movimento
+        const moveX = (dx * Math.cos(angle) - dz * Math.sin(angle)) * speed;
+        const moveZ = (dx * Math.sin(angle) + dz * Math.cos(angle)) * speed;
+
+        player.position.x += moveX;
+        player.position.z += moveZ;
+
+        // Faz o personagem olhar na direção do movimento
         player.lookAt(
-          player.position.x + (dx * Math.cos(moveAngle) - dz * Math.sin(moveAngle)),
+          player.position.x + moveX * 10,
           player.position.y,
-          player.position.z + (dx * Math.sin(moveAngle) + dz * Math.cos(moveAngle))
+          player.position.z + moveZ * 10
         );
       }
     }
 
     function updateCamera() {
       const distance = 28;
-      const height = 12;
+      const heightOffset = 13;
 
       const radYaw = yaw * Math.PI / 180;
       const radPitch = pitch * Math.PI / 180;
 
       camera.position.x = player.position.x - distance * Math.sin(radYaw) * Math.cos(radPitch);
       camera.position.z = player.position.z - distance * Math.cos(radYaw) * Math.cos(radPitch);
-      camera.position.y = player.position.y + height + distance * Math.sin(radPitch);
+      camera.position.y = player.position.y + heightOffset + distance * Math.sin(radPitch);
 
-      camera.lookAt(player.position.x,
+      camera.lookAt(player.position.x, player.position.y + 3, player.position.z);
+    }
+
+    // =============== ANIMAÇÃO ===============
+    function animate() {
+      requestAnimationFrame(animate);
+
+      updateMovement();
+      updateCamera();
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // =============== RESPONSIVO ===============
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
