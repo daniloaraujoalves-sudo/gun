@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
   <meta charset="utf-8">
-  <title>Jogo 3D - Soldado com Gráficos Melhores</title>
+  <title>Jogo 3D - Soldado (Velocidades Baixas)</title>
   <style>
     body { margin: 0; overflow: hidden; background: #000; cursor: none; }
     #info {
@@ -24,11 +24,11 @@
 </head>
 <body>
   <div id="info">
-    W / ↑ = Frente (vel 6)<br>
-    S / ↓ = Trás (vel 2)<br>
-    A / ← = Lados (vel 4)<br>
-    D / → = Lados (vel 4)<br>
-    Clique + Arrastar = Girar câmera (suave)
+    W / ↑ = Frente (vel 1.0)<br>
+    S / ↓ = Trás (vel 0.25)<br>
+    A / ← = Lados (vel 0.4)<br>
+    D / → = Lados (vel 0.4)<br>
+    Clique + Arrastar = Girar câmera
   </div>
   <div id="crosshair"></div>
 
@@ -37,7 +37,7 @@
 
   <script>
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x88aaff, 0.0008);
+    scene.fog = new THREE.FogExp2(0x88aaff, 0.0009);
 
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -46,22 +46,15 @@
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     document.body.appendChild(renderer.domElement);
 
-    // Iluminação melhorada
+    // Iluminação
     scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-    const hemiLight = new THREE.HemisphereLight(0x88aaff, 0x668833, 0.5);
-    scene.add(hemiLight);
+    scene.add(new THREE.HemisphereLight(0x88aaff, 0x668833, 0.5));
 
     const dirLight = new THREE.DirectionalLight(0xffffff, 1.1);
     dirLight.position.set(100, 150, 80);
     dirLight.castShadow = true;
     dirLight.shadow.mapSize.width = 2048;
     dirLight.shadow.mapSize.height = 2048;
-    dirLight.shadow.camera.near = 10;
-    dirLight.shadow.camera.far = 500;
-    dirLight.shadow.camera.left = -150;
-    dirLight.shadow.camera.right = 150;
-    dirLight.shadow.camera.top = 150;
-    dirLight.shadow.camera.bottom = -150;
     scene.add(dirLight);
 
     // Skybox
@@ -75,11 +68,11 @@
       'https://threejs.org/examples/textures/cube/skybox/nz.jpg'
     ]);
 
-    // Chão com textura de asfalto melhor
+    // ==================== CHÃO CORRIGIDO ====================
     const textureLoader = new THREE.TextureLoader();
-    const groundTexture = textureLoader.load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/terrain/asphalt.jpg');
+    const groundTexture = textureLoader.load('https://threejs.org/examples/textures/terrain/grasslight-big.jpg');
     groundTexture.wrapS = groundTexture.wrapT = THREE.RepeatWrapping;
-    groundTexture.repeat.set(120, 120);
+    groundTexture.repeat.set(60, 60);   // repetição ajustada
 
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(1500, 1500),
@@ -89,7 +82,7 @@
     ground.receiveShadow = true;
     scene.add(ground);
 
-    // Obstáculos (mais detalhados)
+    // Obstáculos
     for (let i = 0; i < 60; i++) {
       const h = Math.random() * 10 + 5;
       const box = new THREE.Mesh(
@@ -106,33 +99,22 @@
     const player = new THREE.Group();
     scene.add(player);
 
-    let soldierModel = null;
     const loader = new THREE.GLTFLoader();
-
     loader.load('https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Soldier.glb', 
       (gltf) => {
-        soldierModel = gltf.scene;
-        soldierModel.scale.set(2.2, 2.2, 2.2);        // tamanho bom
-        soldierModel.position.y = 0;                  // pé no chão
-        soldierModel.traverse((child) => {
+        const soldier = gltf.scene;
+        soldier.scale.set(2.2, 2.2, 2.2);
+        soldier.position.y = 0;
+        soldier.traverse((child) => {
           if (child.isMesh) {
             child.castShadow = true;
             child.receiveShadow = true;
           }
         });
-        player.add(soldierModel);
+        player.add(soldier);
       },
       undefined,
-      (error) => {
-        console.error('Erro ao carregar o soldado:', error);
-        // Fallback simples caso não carregue
-        const fallback = new THREE.Mesh(
-          new THREE.BoxGeometry(2, 4, 1.5),
-          new THREE.MeshLambertMaterial({ color: 0x223366 })
-        );
-        fallback.position.y = 2;
-        player.add(fallback);
-      }
+      (err) => console.error('Erro no soldado:', err)
     );
 
     // ===================== CONTROLES =====================
@@ -162,12 +144,13 @@
     let currentSpeed = 0;
     let currentDirection = 0;
 
-    const speedForward = 6.0;
-    const speedSide    = 4.0;
-    const speedBackward = 2.0;
+    // Velocidades solicitadas
+    const speedForward  = 1.0;
+    const speedSide     = 0.4;
+    const speedBackward = 0.25;
 
-    const acceleration = 0.13;
-    const deceleration = 0.16;
+    const acceleration = 0.08;
+    const deceleration = 0.10;
 
     function updateMovement() {
       let forward = 0, strafe = 0;
