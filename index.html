@@ -2,23 +2,23 @@
 <html lang="pt-br">
 <head>
   <meta charset="utf-8">
-  <title>Jogo 3D - Movimento Relativo à Câmera</title>
+  <title>Jogo 3D - Movimento na Direção da Câmera</title>
   <style>
     body { margin: 0; overflow: hidden; background: #000; cursor: none; }
     #info {
-      position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.75);
+      position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.8);
       padding: 15px; border-radius: 10px; font-family: Arial, sans-serif; z-index: 100;
-      user-select: none; line-height: 1.5; pointer-events: none;
+      user-select: none; line-height: 1.6;
     }
   </style>
 </head>
 <body>
   <div id="info">
-    W / ↑ = Andar para frente (direção da câmera)<br>
-    S / ↓ = Andar para trás<br>
-    A / ← = Andar para esquerda (relativo à câmera)<br>
-    D / → = Andar para direita (relativo à câmera)<br>
-    Clique + Arrastar Mouse = Girar câmera 360°
+    W / ↑ = Andar para onde a câmera está olhando<br>
+    S / ↓ = Andar para trás (oposto da câmera)<br>
+    A / ← = Andar para a esquerda da câmera<br>
+    D / → = Andar para a direita da câmera<br>
+    Clique + Arrastar = Girar a câmera
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
@@ -32,14 +32,12 @@
     renderer.shadowMap.enabled = true;
     document.body.appendChild(renderer.domElement);
 
-    // Luzes
     scene.add(new THREE.AmbientLight(0xffffff, 0.6));
     const dirLight = new THREE.DirectionalLight(0xffffff, 1.4);
     dirLight.position.set(80, 120, 60);
     dirLight.castShadow = true;
     scene.add(dirLight);
 
-    // Skybox
     const skyLoader = new THREE.CubeTextureLoader();
     scene.background = skyLoader.load([
       'https://threejs.org/examples/textures/cube/skybox/px.jpg',
@@ -50,28 +48,25 @@
       'https://threejs.org/examples/textures/cube/skybox/nz.jpg'
     ]);
 
-    // Chão
     const textureLoader = new THREE.TextureLoader();
     const groundTexture = textureLoader.load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/terrain/grasslight-big.jpg');
     groundTexture.wrapS = groundTexture.wrapT = THREE.RepeatWrapping;
     groundTexture.repeat.set(80, 80);
 
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(1000, 1000),
-      new THREE.MeshLambertMaterial({ map: groundTexture })
-    );
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), 
+      new THREE.MeshLambertMaterial({ map: groundTexture }));
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     scene.add(ground);
 
     // Obstáculos
     for (let i = 0; i < 50; i++) {
-      const height = Math.random() * 9 + 4;
+      const h = Math.random() * 9 + 4;
       const box = new THREE.Mesh(
-        new THREE.BoxGeometry(7, height, 7),
+        new THREE.BoxGeometry(7, h, 7),
         new THREE.MeshLambertMaterial({ color: Math.random() > 0.5 ? 0x555555 : 0x8B4513 })
       );
-      box.position.set(Math.random()*500-250, height/2, Math.random()*500-250);
+      box.position.set(Math.random()*500-250, h/2, Math.random()*500-250);
       box.castShadow = true;
       box.receiveShadow = true;
       scene.add(box);
@@ -80,33 +75,26 @@
     // Personagem
     const player = new THREE.Group();
     scene.add(player);
-
-    const body = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.1, 1.3, 3.8, 24),
-      new THREE.MeshLambertMaterial({ color: 0x1565C0 })
-    );
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.3, 3.8, 24), 
+      new THREE.MeshLambertMaterial({ color: 0x1565C0 }));
     body.position.y = 2.1;
     body.castShadow = true;
     player.add(body);
 
-    const head = new THREE.Mesh(
-      new THREE.SphereGeometry(1.15, 32, 32),
-      new THREE.MeshLambertMaterial({ color: 0xFFDBAC })
-    );
+    const head = new THREE.Mesh(new THREE.SphereGeometry(1.15, 32, 32), 
+      new THREE.MeshLambertMaterial({ color: 0xFFDBAC }));
     head.position.y = 4.6;
     head.castShadow = true;
     player.add(head);
 
-    // Olhos
     const eyeMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
     const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.28, 20, 20), eyeMat);
     eyeL.position.set(-0.45, 4.8, 0.95);
     player.add(eyeL);
-    const eyeR = eyeL.clone();
-    eyeR.position.x = 0.45;
+    const eyeR = eyeL.clone(); eyeR.position.x = 0.45;
     player.add(eyeR);
 
-    // ====================== CONTROLES ======================
+    // ===================== CONTROLES =====================
     const keys = {};
     let cameraYaw = 0;
     let cameraPitch = -25;
@@ -116,75 +104,65 @@
 
     let isMouseDown = false;
     document.addEventListener('mousedown', () => isMouseDown = true);
-    document.addEventListener('mouseup', () => isMouseDown = false);
-    document.addEventListener('mouseleave', () => isMouseDown = false);
+    document.addEventListener('mouseup',   () => isMouseDown = false);
+    document.addEventListener('mouseleave',() => isMouseDown = false);
 
-    document.addEventListener('mousemove', (e) => {
+    document.addEventListener('mousemove', e => {
       if (!isMouseDown) return;
-      cameraYaw -= e.movementX * 0.35;
-      cameraPitch -= e.movementY * 0.3;
+      cameraYaw -= e.movementX * 0.4;
+      cameraPitch -= e.movementY * 0.35;
       cameraPitch = Math.max(-75, Math.min(55, cameraPitch));
     });
 
     let speed = 0;
-    const maxSpeed = 1.4;
-    const acceleration = 0.05;
-    const deceleration = 0.07;
+    const maxSpeed = 1.45;
+    const acceleration = 0.06;
+    const deceleration = 0.08;
 
     function updateMovement() {
-      let moveX = 0;  // direita/esquerda relativo à câmera
-      let moveZ = 0;  // frente/trás relativo à câmera
+      let forward = 0;
+      let strafe  = 0;
 
-      if (keys['s'] || keys['arrowup'])    moveZ -= 1;
-      if (keys['w'] || keys['arrowdown'])  moveZ += 1;
-      if (keys['d'] || keys['arrowleft'])  moveX -= 1;
-      if (keys['a'] || keys['arrowright']) moveX += 1;
+      if (keys['w'] || keys['arrowup'])    forward = 1;
+      if (keys['s'] || keys['arrowdown'])  forward = -1;
+      if (keys['a'] || keys['arrowleft'])  strafe  = -1;
+      if (keys['d'] || keys['arrowright']) strafe  = 1;
 
-      // Normaliza quando anda na diagonal
-      if (moveX !== 0 && moveZ !== 0) {
-        moveX *= 0.707;
-        moveZ *= 0.707;
+      // Normaliza diagonal
+      if (forward !== 0 && strafe !== 0) {
+        forward *= 0.7071;
+        strafe  *= 0.7071;
       }
 
-      // Calcula a direção baseada na rotação da câmera (horizontal)
-      const rad = cameraYaw * Math.PI / 180;
+      // Direção baseada na câmera (isso é o que você pediu)
+      const angle = cameraYaw * Math.PI / 180;
 
-      const forwardX = Math.sin(rad);
-      const forwardZ = Math.cos(rad);
-      const rightX   = Math.cos(rad);
-      const rightZ   = -Math.sin(rad);
+      const moveX = Math.sin(angle) * forward + Math.cos(angle) * strafe;
+      const moveZ = Math.cos(angle) * forward - Math.sin(angle) * strafe;
 
-      // Velocidade desejada
-      let targetSpeed = 0;
-      if (Math.abs(moveX) > 0 || Math.abs(moveZ) > 0) {
-        targetSpeed = maxSpeed;
-      }
-
-      // Acelera / desacelera suavemente
-      if (targetSpeed > speed) speed = Math.min(speed + acceleration, targetSpeed);
-      else                     speed = Math.max(speed - deceleration, 0);
+      // Aceleração suave
+      const targetSpeed = (forward !== 0 || strafe !== 0) ? maxSpeed : 0;
+      if (targetSpeed > speed) speed += acceleration;
+      else speed = Math.max(speed - deceleration, 0);
 
       if (speed > 0.01) {
-        // Movimento relativo à câmera
-        player.position.x += (forwardX * moveZ + rightX * moveX) * speed;
-        player.position.z += (forwardZ * moveZ + rightZ * moveX) * speed;
+        player.position.x += moveX * speed;
+        player.position.z += moveZ * speed;
 
-        // Faz o personagem olhar para a direção que está se movendo
-        const moveDirection = Math.atan2(forwardX * moveZ + rightX * moveX, 
-                                         forwardZ * moveZ + rightZ * moveX);
-        player.rotation.y = moveDirection + Math.PI;
+        // Personagem olha para a direção do movimento
+        player.rotation.y = Math.atan2(moveX, moveZ) + Math.PI;
       }
     }
 
     function updateCamera() {
-      const distance = 35;
+      const dist = 35;
       const height = 15;
-      const radYaw = cameraYaw * Math.PI / 180;
-      const radPitch = cameraPitch * Math.PI / 180;
+      const ry = cameraYaw * Math.PI / 180;
+      const rp = cameraPitch * Math.PI / 180;
 
-      camera.position.x = player.position.x - distance * Math.sin(radYaw) * Math.cos(radPitch);
-      camera.position.z = player.position.z - distance * Math.cos(radYaw) * Math.cos(radPitch);
-      camera.position.y = player.position.y + height + distance * Math.sin(radPitch);
+      camera.position.x = player.position.x - dist * Math.sin(ry) * Math.cos(rp);
+      camera.position.z = player.position.z - dist * Math.cos(ry) * Math.cos(rp);
+      camera.position.y = player.position.y + height + dist * Math.sin(rp);
 
       camera.lookAt(player.position.x, player.position.y + 4, player.position.z);
     }
