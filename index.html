@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
   <meta charset="utf-8">
-  <title>Jogo 3D - Soldado (Olha sempre para a câmera)</title>
+  <title>Jogo 3D - Soldado com Animação de Andar</title>
   <style>
     body { margin: 0; overflow: hidden; background: #000; cursor: none; }
     #info {
@@ -29,7 +29,7 @@
     A / ← = Lados (vel 0.4)<br>
     D / → = Lados (vel 0.4)<br>
     Clique + Arrastar = Girar câmera<br>
-    <strong>O soldado agora sempre olha para onde a câmera aponta</strong>
+    O soldado agora anda com animação!
   </div>
   <div id="crosshair"></div>
 
@@ -47,7 +47,6 @@
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     document.body.appendChild(renderer.domElement);
 
-    // Iluminação
     scene.add(new THREE.AmbientLight(0xffffff, 0.6));
     scene.add(new THREE.HemisphereLight(0x88aaff, 0x668833, 0.5));
 
@@ -58,7 +57,6 @@
     dirLight.shadow.mapSize.height = 2048;
     scene.add(dirLight);
 
-    // Skybox
     const skyLoader = new THREE.CubeTextureLoader();
     scene.background = skyLoader.load([
       'https://threejs.org/examples/textures/cube/skybox/px.jpg',
@@ -96,11 +94,15 @@
       scene.add(box);
     }
 
-    // ===================== SOLDADO =====================
+    // ===================== SOLDADO COM ANIMAÇÃO =====================
     const player = new THREE.Group();
     scene.add(player);
 
     let soldier = null;
+    let mixer = null;
+    let walkAction = null;
+    let isMoving = false;
+
     const loader = new THREE.GLTFLoader();
 
     loader.load('https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Soldier.glb', 
@@ -108,16 +110,28 @@
         soldier = gltf.scene;
         soldier.scale.set(2.2, 2.2, 2.2);
         soldier.position.y = 0;
+
         soldier.traverse((child) => {
           if (child.isMesh) {
             child.castShadow = true;
             child.receiveShadow = true;
           }
         });
+
         player.add(soldier);
+
+        // Configura animações
+        mixer = new THREE.AnimationMixer(soldier);
+        const animations = gltf.animations;
+
+        walkAction = mixer.clipAction(animations.find(clip => clip.name === 'Walk') || animations[1]);
+        walkAction.setEffectiveWeight(1);
+        walkAction.setEffectiveTimeScale(1.2);   // velocidade da animação
+        walkAction.play();
+        walkAction.paused = true; // começa parado
       },
       undefined,
-      (err) => console.error(err)
+      (err) => console.error('Erro ao carregar soldado:', err)
     );
 
     // ===================== CONTROLES =====================
@@ -176,6 +190,8 @@
       const moveX = Math.sin(cameraAngle) * forward - Math.cos(cameraAngle) * strafe;
       const moveZ = Math.cos(cameraAngle) * forward + Math.sin(cameraAngle) * strafe;
 
+      isMoving = currentSpeed > 0.05;
+
       if (currentSpeed > 0.02) {
         player.position.x += moveX * currentSpeed;
         player.position.z += moveZ * currentSpeed;
@@ -197,16 +213,32 @@
 
       camera.lookAt(player.position.x, player.position.y + 5, player.position.z);
 
-      // === NOVO: Faz o soldado sempre olhar para onde a câmera aponta ===
+      // Soldado sempre olha para direção da câmera
       if (soldier) {
         soldier.rotation.y = cameraYaw * Math.PI / 180 + Math.PI;
       }
     }
 
+    // Atualiza animação
+    let clock = new THREE.Clock();
+
     function animate() {
       requestAnimationFrame(animate);
+      
+      const delta = clock.getDelta();
+
       updateMovement();
       updateCamera();
+
+      // Controla animação de andar
+      if (mixer && walkAction) {
+        walkAction.paused = !isMoving;
+        if (isMoving) {
+          walkAction.setEffectiveTimeScale(currentSpeed * 1.8); // animação mais rápida quando anda mais
+        }
+        mixer.update(delta);
+      }
+
       renderer.render(scene, camera);
     }
 
