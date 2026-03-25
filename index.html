@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
   <meta charset="utf-8">
-  <title>Jogo 3D - Soldado (Velocidades Baixas)</title>
+  <title>Jogo 3D - Soldado (Olha sempre para a câmera)</title>
   <style>
     body { margin: 0; overflow: hidden; background: #000; cursor: none; }
     #info {
@@ -28,7 +28,8 @@
     S / ↓ = Trás (vel 0.25)<br>
     A / ← = Lados (vel 0.4)<br>
     D / → = Lados (vel 0.4)<br>
-    Clique + Arrastar = Girar câmera
+    Clique + Arrastar = Girar câmera<br>
+    <strong>O soldado agora sempre olha para onde a câmera aponta</strong>
   </div>
   <div id="crosshair"></div>
 
@@ -68,11 +69,11 @@
       'https://threejs.org/examples/textures/cube/skybox/nz.jpg'
     ]);
 
-    // ==================== CHÃO CORRIGIDO ====================
+    // Chão
     const textureLoader = new THREE.TextureLoader();
     const groundTexture = textureLoader.load('https://threejs.org/examples/textures/terrain/grasslight-big.jpg');
     groundTexture.wrapS = groundTexture.wrapT = THREE.RepeatWrapping;
-    groundTexture.repeat.set(60, 60);   // repetição ajustada
+    groundTexture.repeat.set(60, 60);
 
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(1500, 1500),
@@ -99,10 +100,12 @@
     const player = new THREE.Group();
     scene.add(player);
 
+    let soldier = null;
     const loader = new THREE.GLTFLoader();
+
     loader.load('https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Soldier.glb', 
       (gltf) => {
-        const soldier = gltf.scene;
+        soldier = gltf.scene;
         soldier.scale.set(2.2, 2.2, 2.2);
         soldier.position.y = 0;
         soldier.traverse((child) => {
@@ -114,7 +117,7 @@
         player.add(soldier);
       },
       undefined,
-      (err) => console.error('Erro no soldado:', err)
+      (err) => console.error(err)
     );
 
     // ===================== CONTROLES =====================
@@ -142,9 +145,7 @@
     });
 
     let currentSpeed = 0;
-    let currentDirection = 0;
 
-    // Velocidades solicitadas
     const speedForward  = 1.0;
     const speedSide     = 0.4;
     const speedBackward = 0.25;
@@ -172,19 +173,12 @@
 
       const cameraAngle = targetYaw * Math.PI / 180;
 
-      const tx = Math.sin(cameraAngle) * forward - Math.cos(cameraAngle) * strafe;
-      const tz = Math.cos(cameraAngle) * forward + Math.sin(cameraAngle) * strafe;
-
-      const targetDir = Math.atan2(tx, tz);
-
-      if (targetSpeed > 0) {
-        currentDirection = currentDirection * 0.78 + targetDir * 0.22;
-      }
+      const moveX = Math.sin(cameraAngle) * forward - Math.cos(cameraAngle) * strafe;
+      const moveZ = Math.cos(cameraAngle) * forward + Math.sin(cameraAngle) * strafe;
 
       if (currentSpeed > 0.02) {
-        player.position.x += Math.sin(currentDirection) * currentSpeed;
-        player.position.z += Math.cos(currentDirection) * currentSpeed;
-        player.rotation.y = currentDirection + Math.PI;
+        player.position.x += moveX * currentSpeed;
+        player.position.z += moveZ * currentSpeed;
       }
     }
 
@@ -202,6 +196,11 @@
       camera.position.y = player.position.y + height + distance * Math.sin(rp);
 
       camera.lookAt(player.position.x, player.position.y + 5, player.position.z);
+
+      // === NOVO: Faz o soldado sempre olhar para onde a câmera aponta ===
+      if (soldier) {
+        soldier.rotation.y = cameraYaw * Math.PI / 180 + Math.PI;
+      }
     }
 
     function animate() {
