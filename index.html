@@ -2,76 +2,69 @@
 <html lang="pt-br">
 <head>
   <meta charset="utf-8">
-  <title>Jogo 3D - Velocidades Diferentes</title>
+  <title>Jogo 3D - Soldado com Gráficos Melhores</title>
   <style>
-    body { 
-      margin: 0; 
-      overflow: hidden; 
-      background: #000; 
-      cursor: none; 
-    }
+    body { margin: 0; overflow: hidden; background: #000; cursor: none; }
     #info {
       position: absolute; top: 10px; left: 10px; color: white; 
       background: rgba(0,0,0,0.75); padding: 15px; border-radius: 10px; 
       font-family: Arial, sans-serif; z-index: 100; user-select: none; line-height: 1.6;
     }
     #crosshair {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 20px;
-      height: 20px;
-      transform: translate(-50%, -50%);
-      pointer-events: none;
-      z-index: 200;
-      opacity: 0.85;
+      position: absolute; top: 50%; left: 50%; width: 18px; height: 18px;
+      transform: translate(-50%, -50%); pointer-events: none; z-index: 200; opacity: 0.75;
     }
     #crosshair::before, #crosshair::after {
-      content: '';
-      position: absolute;
-      background: rgba(255, 255, 255, 0.9);
-      box-shadow: 0 0 8px rgba(255,255,255,0.6);
+      content: ''; position: absolute; background: #ffffff;
+      box-shadow: 0 0 8px rgba(255,255,255,0.8);
     }
-    #crosshair::before {
-      width: 100%;
-      height: 2px;
-      top: 9px;
-    }
-    #crosshair::after {
-      width: 2px;
-      height: 100%;
-      left: 9px;
-    }
+    #crosshair::before { width: 100%; height: 2px; top: 8px; }
+    #crosshair::after { width: 2px; height: 100%; left: 8px; }
   </style>
 </head>
 <body>
   <div id="info">
-    W / ↑ = Frente (velocidade 6)<br>
-    S / ↓ = Trás (velocidade 2)<br>
-    A / ← = Lados (velocidade 4)<br>
-    D / → = Lados (velocidade 4)<br>
-    Clique + Arrastar = Girar câmera 360°
+    W / ↑ = Frente (vel 6)<br>
+    S / ↓ = Trás (vel 2)<br>
+    A / ← = Lados (vel 4)<br>
+    D / → = Lados (vel 4)<br>
+    Clique + Arrastar = Girar câmera (suave)
   </div>
-
   <div id="crosshair"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/loaders/GLTFLoader.min.js"></script>
+
   <script>
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x88aaff, 180, 750);
+    scene.fog = new THREE.FogExp2(0x88aaff, 0.0008);
 
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     document.body.appendChild(renderer.domElement);
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.65));
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.35);
-    dirLight.position.set(70, 130, 80);
+    // Iluminação melhorada
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    const hemiLight = new THREE.HemisphereLight(0x88aaff, 0x668833, 0.5);
+    scene.add(hemiLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.1);
+    dirLight.position.set(100, 150, 80);
     dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 2048;
+    dirLight.shadow.mapSize.height = 2048;
+    dirLight.shadow.camera.near = 10;
+    dirLight.shadow.camera.far = 500;
+    dirLight.shadow.camera.left = -150;
+    dirLight.shadow.camera.right = 150;
+    dirLight.shadow.camera.top = 150;
+    dirLight.shadow.camera.bottom = -150;
     scene.add(dirLight);
 
+    // Skybox
     const skyLoader = new THREE.CubeTextureLoader();
     scene.background = skyLoader.load([
       'https://threejs.org/examples/textures/cube/skybox/px.jpg',
@@ -82,63 +75,72 @@
       'https://threejs.org/examples/textures/cube/skybox/nz.jpg'
     ]);
 
+    // Chão com textura de asfalto melhor
     const textureLoader = new THREE.TextureLoader();
-    const groundTexture = textureLoader.load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/terrain/grasslight-big.jpg');
+    const groundTexture = textureLoader.load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/terrain/asphalt.jpg');
     groundTexture.wrapS = groundTexture.wrapT = THREE.RepeatWrapping;
-    groundTexture.repeat.set(80, 80);
+    groundTexture.repeat.set(120, 120);
 
     const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(1200, 1200),
+      new THREE.PlaneGeometry(1500, 1500),
       new THREE.MeshLambertMaterial({ map: groundTexture })
     );
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     scene.add(ground);
 
-    // Obstáculos
-    for (let i = 0; i < 50; i++) {
-      const h = Math.random() * 9 + 4;
+    // Obstáculos (mais detalhados)
+    for (let i = 0; i < 60; i++) {
+      const h = Math.random() * 10 + 5;
       const box = new THREE.Mesh(
-        new THREE.BoxGeometry(7, h, 7),
-        new THREE.MeshLambertMaterial({ color: Math.random() > 0.5 ? 0x555555 : 0x8B4513 })
+        new THREE.BoxGeometry(8, h, 8),
+        new THREE.MeshLambertMaterial({ color: Math.random() > 0.5 ? 0x444444 : 0x8B5A2B })
       );
-      box.position.set(Math.random()*550-275, h/2, Math.random()*550-275);
+      box.position.set(Math.random()*600-300, h/2, Math.random()*600-300);
       box.castShadow = true;
       box.receiveShadow = true;
       scene.add(box);
     }
 
-    // Personagem
+    // ===================== SOLDADO =====================
     const player = new THREE.Group();
     scene.add(player);
 
-    const body = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.1, 1.3, 3.8, 24),
-      new THREE.MeshLambertMaterial({ color: 0x1565C0 })
-    );
-    body.position.y = 2.1;
-    body.castShadow = true;
-    player.add(body);
+    let soldierModel = null;
+    const loader = new THREE.GLTFLoader();
 
-    const head = new THREE.Mesh(
-      new THREE.SphereGeometry(1.15, 32, 32),
-      new THREE.MeshLambertMaterial({ color: 0xFFDBAC })
+    loader.load('https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Soldier.glb', 
+      (gltf) => {
+        soldierModel = gltf.scene;
+        soldierModel.scale.set(2.2, 2.2, 2.2);        // tamanho bom
+        soldierModel.position.y = 0;                  // pé no chão
+        soldierModel.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+        player.add(soldierModel);
+      },
+      undefined,
+      (error) => {
+        console.error('Erro ao carregar o soldado:', error);
+        // Fallback simples caso não carregue
+        const fallback = new THREE.Mesh(
+          new THREE.BoxGeometry(2, 4, 1.5),
+          new THREE.MeshLambertMaterial({ color: 0x223366 })
+        );
+        fallback.position.y = 2;
+        player.add(fallback);
+      }
     );
-    head.position.y = 4.6;
-    head.castShadow = true;
-    player.add(head);
-
-    const eyeMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
-    const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.28, 20, 20), eyeMat);
-    eyeL.position.set(-0.45, 4.8, 0.95);
-    player.add(eyeL);
-    const eyeR = eyeL.clone(); eyeR.position.x = 0.45;
-    player.add(eyeR);
 
     // ===================== CONTROLES =====================
     const keys = {};
+    let targetYaw = 0;
+    let targetPitch = -32;
     let cameraYaw = 0;
-    let cameraPitch = -28;
+    let cameraPitch = -32;
 
     window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
     window.addEventListener('keyup',   e => keys[e.key.toLowerCase()] = false);
@@ -148,73 +150,67 @@
     document.addEventListener('mouseup',   () => isMouseDown = false);
     document.addEventListener('mouseleave',() => isMouseDown = false);
 
+    const mouseSensitivity = 0.16;
+
     document.addEventListener('mousemove', e => {
       if (!isMouseDown) return;
-      cameraYaw -= e.movementX * 0.42;
-      cameraPitch -= e.movementY * 0.36;
-      cameraPitch = Math.max(-78, Math.min(58, cameraPitch));
+      targetYaw   -= e.movementX * mouseSensitivity;
+      targetPitch -= e.movementY * mouseSensitivity;
+      targetPitch = Math.max(-78, Math.min(65, targetPitch));
     });
 
     let currentSpeed = 0;
     let currentDirection = 0;
 
-    // Velocidades diferentes conforme pedido
     const speedForward = 6.0;
     const speedSide    = 4.0;
     const speedBackward = 2.0;
 
-    const acceleration = 0.12;   // mais rápido para sentir a diferença
-    const deceleration = 0.15;
+    const acceleration = 0.13;
+    const deceleration = 0.16;
 
     function updateMovement() {
-      let forward = 0;   // W / S
-      let strafe = 0;    // A / D
+      let forward = 0, strafe = 0;
 
-      if (keys['w'] || keys['arrowup'])    forward = 1;
-      if (keys['s'] || keys['arrowdown'])  forward = -1;
-      if (keys['a'] || keys['arrowleft'])  strafe  = -1;
-      if (keys['d'] || keys['arrowright']) strafe  = 1;
+      if (keys['w'] || keys['arrowup']) forward = 1;
+      if (keys['s'] || keys['arrowdown']) forward = -1;
+      if (keys['a'] || keys['arrowleft']) strafe = -1;
+      if (keys['d'] || keys['arrowright']) strafe = 1;
 
-      // Calcula a velocidade alvo dependendo da direção
       let targetSpeed = 0;
-      if (forward > 0)      targetSpeed = speedForward;      // W
-      else if (forward < 0) targetSpeed = speedBackward;     // S
-      else if (strafe !== 0) targetSpeed = speedSide;        // A ou D
+      if (forward > 0) targetSpeed = speedForward;
+      else if (forward < 0) targetSpeed = speedBackward;
+      else if (strafe !== 0) targetSpeed = speedSide;
 
-      // Quando anda na diagonal, mistura as velocidades
-      if (forward !== 0 && strafe !== 0) {
-        targetSpeed = (targetSpeed + speedSide) * 0.7071;
-      }
+      if (forward !== 0 && strafe !== 0) targetSpeed *= 0.7071;
 
-      // Aceleração e desaceleração suave
-      if (targetSpeed > currentSpeed) {
-        currentSpeed += acceleration;
-      } else {
-        currentSpeed = Math.max(currentSpeed - deceleration, 0);
-      }
+      if (targetSpeed > currentSpeed) currentSpeed += acceleration;
+      else currentSpeed = Math.max(currentSpeed - deceleration, 0);
 
-      const cameraAngle = cameraYaw * Math.PI / 180;
+      const cameraAngle = targetYaw * Math.PI / 180;
 
-      const targetMoveX = Math.sin(cameraAngle) * forward - Math.cos(cameraAngle) * strafe;
-      const targetMoveZ = Math.cos(cameraAngle) * forward + Math.sin(cameraAngle) * strafe;
+      const tx = Math.sin(cameraAngle) * forward - Math.cos(cameraAngle) * strafe;
+      const tz = Math.cos(cameraAngle) * forward + Math.sin(cameraAngle) * strafe;
 
-      const targetDirection = Math.atan2(targetMoveX, targetMoveZ);
+      const targetDir = Math.atan2(tx, tz);
 
       if (targetSpeed > 0) {
-        currentDirection = currentDirection * 0.78 + targetDirection * 0.22;
+        currentDirection = currentDirection * 0.78 + targetDir * 0.22;
       }
 
       if (currentSpeed > 0.02) {
         player.position.x += Math.sin(currentDirection) * currentSpeed;
         player.position.z += Math.cos(currentDirection) * currentSpeed;
-
         player.rotation.y = currentDirection + Math.PI;
       }
     }
 
     function updateCamera() {
-      const distance = 36;
-      const height = 16;
+      cameraYaw   = cameraYaw * 0.86 + targetYaw * 0.14;
+      cameraPitch = cameraPitch * 0.89 + targetPitch * 0.11;
+
+      const distance = 38;
+      const height = 18;
       const ry = cameraYaw * Math.PI / 180;
       const rp = cameraPitch * Math.PI / 180;
 
@@ -222,7 +218,7 @@
       camera.position.z = player.position.z - distance * Math.cos(ry) * Math.cos(rp);
       camera.position.y = player.position.y + height + distance * Math.sin(rp);
 
-      camera.lookAt(player.position.x, player.position.y + 4.2, player.position.z);
+      camera.lookAt(player.position.x, player.position.y + 5, player.position.z);
     }
 
     function animate() {
