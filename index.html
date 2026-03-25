@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
   <meta charset="utf-8">
-  <title>Jogo 3D - Câmera 360° Melhorado</title>
+  <title>Jogo 3D - Movimento Relativo à Câmera</title>
   <style>
     body { margin: 0; overflow: hidden; background: #000; cursor: none; }
     #info {
@@ -10,14 +10,14 @@
       padding: 15px; border-radius: 10px; font-family: Arial, sans-serif; z-index: 100;
       user-select: none; line-height: 1.5; pointer-events: none;
     }
-    canvas { display: block; }
   </style>
 </head>
 <body>
   <div id="info">
-    W / ↑ = Acelerar<br>
-    S / ↓ = Frear / Ré<br>
-    A / D ou ← → = Virar<br>
+    W / ↑ = Andar para frente (direção da câmera)<br>
+    S / ↓ = Andar para trás<br>
+    A / ← = Andar para esquerda (relativo à câmera)<br>
+    D / → = Andar para direita (relativo à câmera)<br>
     Clique + Arrastar Mouse = Girar câmera 360°
   </div>
 
@@ -37,11 +37,9 @@
     const dirLight = new THREE.DirectionalLight(0xffffff, 1.4);
     dirLight.position.set(80, 120, 60);
     dirLight.castShadow = true;
-    dirLight.shadow.mapSize.width = 2048;
-    dirLight.shadow.mapSize.height = 2048;
     scene.add(dirLight);
 
-    // Skybox (usando um skybox público que funciona)
+    // Skybox
     const skyLoader = new THREE.CubeTextureLoader();
     scene.background = skyLoader.load([
       'https://threejs.org/examples/textures/cube/skybox/px.jpg',
@@ -52,7 +50,7 @@
       'https://threejs.org/examples/textures/cube/skybox/nz.jpg'
     ]);
 
-    // Chão com textura gratuita que funciona direto
+    // Chão
     const textureLoader = new THREE.TextureLoader();
     const groundTexture = textureLoader.load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/terrain/grasslight-big.jpg');
     groundTexture.wrapS = groundTexture.wrapT = THREE.RepeatWrapping;
@@ -69,16 +67,11 @@
     // Obstáculos
     for (let i = 0; i < 50; i++) {
       const height = Math.random() * 9 + 4;
-      const color = Math.random() > 0.5 ? 0x555555 : 0x8B4513;
       const box = new THREE.Mesh(
         new THREE.BoxGeometry(7, height, 7),
-        new THREE.MeshLambertMaterial({ color })
+        new THREE.MeshLambertMaterial({ color: Math.random() > 0.5 ? 0x555555 : 0x8B4513 })
       );
-      box.position.set(
-        Math.random() * 500 - 250,
-        height / 2,
-        Math.random() * 500 - 250
-      );
+      box.position.set(Math.random()*500-250, height/2, Math.random()*500-250);
       box.castShadow = true;
       box.receiveShadow = true;
       scene.add(box);
@@ -113,9 +106,8 @@
     eyeR.position.x = 0.45;
     player.add(eyeR);
 
-    // Controles
+    // ====================== CONTROLES ======================
     const keys = {};
-    let yaw = 0;
     let cameraYaw = 0;
     let cameraPitch = -25;
 
@@ -124,8 +116,8 @@
 
     let isMouseDown = false;
     document.addEventListener('mousedown', () => isMouseDown = true);
-    document.addEventListener('mouseup',   () => isMouseDown = false);
-    document.addEventListener('mouseleave',() => isMouseDown = false);
+    document.addEventListener('mouseup', () => isMouseDown = false);
+    document.addEventListener('mouseleave', () => isMouseDown = false);
 
     document.addEventListener('mousemove', (e) => {
       if (!isMouseDown) return;
@@ -135,28 +127,52 @@
     });
 
     let speed = 0;
-    const maxSpeed = 1.35;
-    const acceleration = 0.045;
-    const deceleration = 0.065;
+    const maxSpeed = 1.4;
+    const acceleration = 0.05;
+    const deceleration = 0.07;
 
     function updateMovement() {
-      if (keys['w'] || keys['arrowup']) {
-        speed = Math.min(speed + acceleration, maxSpeed);
-      } else if (keys['s'] || keys['arrowdown']) {
-        speed = Math.max(speed - acceleration * 2.2, -maxSpeed * 0.65);
-      } else {
-        speed *= 0.90;
+      let moveX = 0;  // direita/esquerda relativo à câmera
+      let moveZ = 0;  // frente/trás relativo à câmera
+
+      if (keys['w'] || keys['arrowup'])    moveZ -= 1;
+      if (keys['s'] || keys['arrowdown'])  moveZ += 1;
+      if (keys['a'] || keys['arrowleft'])  moveX -= 1;
+      if (keys['d'] || keys['arrowright']) moveX += 1;
+
+      // Normaliza quando anda na diagonal
+      if (moveX !== 0 && moveZ !== 0) {
+        moveX *= 0.707;
+        moveZ *= 0.707;
       }
 
-      const turnSpeed = 2.8 * (Math.abs(speed) * 0.7 + 0.25);
-      if (keys['a'] || keys['arrowleft']) yaw += turnSpeed;
-      if (keys['d'] || keys['arrowright']) yaw -= turnSpeed;
+      // Calcula a direção baseada na rotação da câmera (horizontal)
+      const rad = cameraYaw * Math.PI / 180;
 
-      if (Math.abs(speed) > 0.01) {
-        const rad = yaw * Math.PI / 180;
-        player.position.x += Math.sin(rad) * speed;
-        player.position.z += Math.cos(rad) * speed;
-        player.rotation.y = rad + Math.PI;
+      const forwardX = Math.sin(rad);
+      const forwardZ = Math.cos(rad);
+      const rightX   = Math.cos(rad);
+      const rightZ   = -Math.sin(rad);
+
+      // Velocidade desejada
+      let targetSpeed = 0;
+      if (Math.abs(moveX) > 0 || Math.abs(moveZ) > 0) {
+        targetSpeed = maxSpeed;
+      }
+
+      // Acelera / desacelera suavemente
+      if (targetSpeed > speed) speed = Math.min(speed + acceleration, targetSpeed);
+      else                     speed = Math.max(speed - deceleration, 0);
+
+      if (speed > 0.01) {
+        // Movimento relativo à câmera
+        player.position.x += (forwardX * moveZ + rightX * moveX) * speed;
+        player.position.z += (forwardZ * moveZ + rightZ * moveX) * speed;
+
+        // Faz o personagem olhar para a direção que está se movendo
+        const moveDirection = Math.atan2(forwardX * moveZ + rightX * moveX, 
+                                         forwardZ * moveZ + rightZ * moveX);
+        player.rotation.y = moveDirection + Math.PI;
       }
     }
 
@@ -182,7 +198,6 @@
 
     animate();
 
-    // Responsivo
     window.addEventListener('resize', () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
