@@ -181,9 +181,8 @@
 
       const cameraAngle = cameraYaw * Math.PI / 180;
 
-      const targetMoveX = Math.sin(cameraAngle) * forward + Math.cos(cameraAngle) * strafe;
-      const targetMoveZ = Math.cos(cameraAngle) * forward - Math.sin(cameraAngle) * strafe;
-
+           const targetMoveX = Math.sin(cameraAngle) * forward - Math.cos(cameraAngle) * strafe;
+      const targetMoveZ = Math.cos(cameraAngle) * forward + Math.sin(cameraAngle) * strafe;
       const targetDirection = Math.atan2(targetMoveX, targetMoveZ);
 
       // Suaviza a direção (fica bem mais fluido)
