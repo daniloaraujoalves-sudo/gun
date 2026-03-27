@@ -6,7 +6,6 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
     <div id="login-screen" class="overlay">
         <div class="menu-box">
             <h1>MISSION START</h1>
@@ -17,10 +16,8 @@
     </div>
 
     <div id="game-ui" style="display: none;">
-        <div id="info">W,A,S,D para mover | Clique e Arraste para girar</div>
-        <div id="minimap">
-            <canvas id="mapCanvas" width="200" height="200"></canvas>
-        </div>
+        <div id="info">W,A,S,D para mover | Mouse para girar</div>
+        <div id="minimap"><canvas id="mapCanvas" width="200" height="200"></canvas></div>
         <div id="crosshair"></div>
         <div id="score-display">KILLS: <span id="kill-count">0</span></div>
     </div>
@@ -28,18 +25,16 @@
     <div id="rank-screen" class="overlay" style="display: none;">
         <div class="menu-box">
             <h1>TOP AGENTES</h1>
-            <ul id="rank-list" style="list-style: none; padding: 0; margin: 20px 0;">
-                </ul>
+            <ul id="rank-list"></ul>
             <button onclick="hideRank()">VOLTAR</button>
         </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/loaders/GLTFLoader.min.js"></script>
-
+    
     <script src="rank.js"></script>
     <script src="enemies.js"></script>
     <script src="game.js"></script>
-
 </body>
 </html>

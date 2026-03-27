@@ -1,45 +1,44 @@
-let gameRunning = false;
-let score = 0;
-
-// ... (todo o seu código de setup da Scene, Camera, Player aqui) ...
+// Variáveis globais (para que outras funções acessem)
+let gameStarted = false;
+let playerName = "";
 
 function startGame() {
-    const name = document.getElementById('username').value;
-    if (name.length < 2) {
-        alert("Insira um nome de Agente!");
+    playerName = document.getElementById('username').value;
+
+    if (playerName.length < 3) {
+        alert("Escolha um nome de agente com pelo menos 3 letras!");
         return;
     }
 
+    // 1. Esconde o menu e mostra a interface do jogo
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('game-ui').style.display = 'block';
+
+    // 2. Ativa a lógica do jogo
+    gameStarted = true;
     
-    gameRunning = true;
-    animate(); // Começa o loop
+    // 3. Opcional: Bloquear o ponteiro do mouse para o jogo (melhora a experiência)
+    document.body.requestPointerLock();
 }
 
-function gameOver() {
-    gameRunning = false;
-    const name = document.getElementById('username').value;
-    saveScore(name, Math.floor(score));
-    alert(`GAME OVER! Pontuação: ${Math.floor(score)}`);
-    location.reload(); // Reinicia o jogo
-}
-
+// No seu loop de animação (function animate), adicione uma trava:
 function animate() {
-    if (!gameRunning) return; // TRAVA O JOGO SE NÃO CLICOU EM INICIAR
+    if (!gameStarted) return; // Se não clicou em iniciar, não processa nada
 
     requestAnimationFrame(animate);
     const delta = clock.getDelta();
-    score += delta * 10; // Pontos por tempo
 
     updateMovement();
     updateCamera();
     
-    // Chama a função dos inimigos que está no outro arquivo
-    updateEnemies(scene, player, delta);
+    // Se você já criou o arquivo enemies.js:
+    if (typeof updateEnemies === "function") {
+        updateEnemies(player.position);
+    }
 
     if (mixer && walkAction) {
         walkAction.paused = !isMoving;
+        if (isMoving) walkAction.setEffectiveTimeScale(currentSpeed * 2.0);
         mixer.update(delta);
     }
 
