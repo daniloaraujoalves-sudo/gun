@@ -1,83 +1,117 @@
-let scene, camera, renderer, player, clock, mixer, walkAction;
+// === VARIÁVEIS GLOBAIS ===
+let scene, camera, renderer, player, clock, mixer;
 let gameRunning = false;
-let isMoving = false;
 let keys = {};
 
-// Setup inicial (ocorre ao carregar a página, mas não renderiza)
+// === 1. SETUP INICIAL ===
 function init() {
+    // Criar a cena
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x88aaff);
+    scene.background = new THREE.Color(0x333333); // Fundo cinza escuro para teste
+    
     clock = new THREE.Clock();
 
+    // Câmera
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 20, 30);
+
+    // Renderizador
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    
+    // IMPORTANTE: Adiciona o canvas no início do body para não cobrir o HTML
+    document.body.prepend(renderer.domElement); 
 
     // Luzes
-    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-    dirLight.position.set(10, 20, 10);
-    scene.add(dirLight);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    scene.add(ambientLight);
+    const pointLight = new THREE.PointLight(0xffffff, 1);
+    pointLight.position.set(50, 50, 50);
+    scene.add(pointLight);
 
-    // Chão
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshLambertMaterial({ color: 0x448844 }));
-    ground.rotation.x = -Math.PI / 2;
-    scene.add(ground);
+    // Chão de Teste (Grid)
+    const grid = new THREE.GridHelper(200, 20, 0xffffff, 0x444444);
+    scene.add(grid);
 
-    // Player (Container)
+    // Player Container
     player = new THREE.Group();
+    player.position.set(0, 0, 0);
     scene.add(player);
 
-    // Modelo do Soldado
+    // Carregar Soldado
     const loader = new THREE.GLTFLoader();
     loader.load('https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Soldier.glb', (gltf) => {
         const soldier = gltf.scene;
         soldier.scale.set(2, 2, 2);
         player.add(soldier);
         mixer = new THREE.AnimationMixer(soldier);
-        walkAction = mixer.clipAction(gltf.animations[1]);
+        console.log("Soldado carregado com sucesso!");
+    }, undefined, (error) => {
+        console.error("Erro ao carregar modelo:", error);
     });
+
+    // Ajuste de Janela
+    window.addEventListener('resize', onWindowResize);
 }
 
+// === 2. COMANDOS DO MENU ===
 function startGame() {
     const user = document.getElementById('username').value;
-    if(!user) return alert("Digite seu nome!");
-    
+    if (user.length < 2) return alert("Digite seu nome!");
+
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('game-ui').style.display = 'block';
-    
+
     gameRunning = true;
-    animate();
+    animate(); // Inicia o loop
+    console.log("Jogo Iniciado!");
 }
 
+// === 3. LOOP DE ANIMAÇÃO ===
 function animate() {
     if (!gameRunning) return;
+    
     requestAnimationFrame(animate);
     const delta = clock.getDelta();
 
-    // Movimentação Simples
-    if (keys['w']) player.translateZ(0.8);
-    if (keys['s']) player.translateZ(-0.4);
-    if (keys['a']) player.rotation.y += 0.05;
-    if (keys['d']) player.rotation.y -= 0.05;
+    // Movimentação Básica
+    if (keys['w']) player.translateZ(0.5);
+    if (keys['s']) player.translateZ(-0.3);
+    if (keys['a']) player.rotation.y += 0.04;
+    if (keys['d']) player.rotation.y -= 0.04;
 
-    // Câmera segue player
-    const camOffset = new THREE.Vector3(0, 15, -30).applyQuaternion(player.quaternion);
-    camera.position.copy(player.position).add(camOffset);
-    camera.lookAt(player.position);
+    // Câmera segue o jogador
+    const relativeCameraOffset = new THREE.Vector3(0, 15, -25);
+    const cameraOffset = relativeCameraOffset.applyMatrix4(player.matrixWorld);
+    camera.position.x = cameraOffset.x;
+    camera.position.y = cameraOffset.y;
+    camera.position.z = cameraOffset.z;
+    camera.lookAt(player.position.x, player.position.y + 5, player.position.z);
 
+    // Update de sistemas externos
     if (mixer) mixer.update(delta);
-    
-    updateEnemies(scene, player.position, delta, () => {
-        alert("GAME OVER");
-        saveScore(document.getElementById('username').value, Math.floor(performance.now()/1000));
-        location.reload();
-    });
+    if (typeof updateEnemies === 'function') {
+        updateEnemies(scene, player.position, delta, () => {
+            gameRunning = false;
+            alert("GAME OVER!");
+            location.reload();
+        });
+    }
 
     renderer.render(scene, camera);
+    if (typeof drawMinimap === 'function') drawMinimap();
+}
+
+// === AUXILIARES ===
+function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
 window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
 window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
-window.onload = init; // Inicia o setup mas não o loop
+
+// Inicializa a cena assim que o script carregar
+init();
