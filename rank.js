@@ -1,19 +1,14 @@
-// rank.js
-function saveScore(name, kills) {
-    let rawData = localStorage.getItem('gameRank') || "[]";
-    let scores = JSON.parse(rawData);
-    scores.push({ name, kills });
-    scores.sort((a, b) => b.kills - a.kills);
-    localStorage.setItem('gameRank', JSON.stringify(scores.slice(0, 5))); // Salva os top 5
+function saveScore(name, score) {
+    let ranking = JSON.parse(localStorage.getItem('gameRank') || "[]");
+    ranking.push({ name, score });
+    ranking.sort((a, b) => b.score - a.score);
+    localStorage.setItem('gameRank', JSON.stringify(ranking.slice(0, 5)));
 }
 
 function showRank() {
-    const list = document.getElementById('rank-list');
-    list.innerHTML = "";
-    let scores = JSON.parse(localStorage.getItem('gameRank') || "[]");
-    scores.forEach(s => {
-        list.innerHTML += `<li>${s.name}: ${s.kills} Kills</li>`;
-    });
+    const container = document.getElementById('rank-list');
+    let ranking = JSON.parse(localStorage.getItem('gameRank') || "[]");
+    container.innerHTML = ranking.map((r, i) => `<p>${i+1}. ${r.name} - ${r.score}s</p>`).join('');
     document.getElementById('rank-screen').style.display = 'flex';
 }
 

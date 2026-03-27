@@ -1,29 +1,22 @@
-// enemies.js
 let enemies = [];
+let lastSpawn = 0;
 
-function spawnEnemy(scene) {
-    const geometry = new THREE.BoxGeometry(4, 10, 4);
-    const material = new THREE.MeshLambertMaterial({ color: 0xff0000 });
-    const enemy = new THREE.Mesh(geometry, material);
-    
-    // Spawn aleatório longe do player
-    enemy.position.set(Math.random() * 400 - 200, 5, Math.random() * 400 - 200);
-    scene.add(enemy);
-    enemies.push(enemy);
-}
+function updateEnemies(scene, playerPos, delta, onCollision) {
+    lastSpawn += delta;
+    if (lastSpawn > 3) { // Spawna a cada 3 segundos
+        const geo = new THREE.BoxGeometry(4, 8, 4);
+        const mat = new THREE.MeshLambertMaterial({ color: 0xff0000 });
+        const enemy = new THREE.Mesh(geo, mat);
+        enemy.position.set(Math.random()*400-200, 4, Math.random()*400-200);
+        scene.add(enemy);
+        enemies.push(enemy);
+        lastSpawn = 0;
+    }
 
-function updateEnemies(playerPos) {
-    const speed = 0.3;
-    enemies.forEach(enemy => {
-        // Direção para o player
-        const dir = new THREE.Vector3().subVectors(playerPos, enemy.position).normalize();
-        enemy.position.x += dir.x * speed;
-        enemy.position.z += dir.z * speed;
-        
-        // Simples colisão (Game Over se encostar)
-        if (enemy.position.distanceTo(playerPos) < 5) {
-            alert("VOCÊ FOI PEGO!");
-            location.reload();
-        }
+    enemies.forEach(en => {
+        const dir = new THREE.Vector3().subVectors(playerPos, en.position).normalize();
+        en.position.x += dir.x * 0.3;
+        en.position.z += dir.z * 0.3;
+        if (en.position.distanceTo(playerPos) < 5) onCollision();
     });
 }

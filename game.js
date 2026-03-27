@@ -1,47 +1,83 @@
-// Variáveis globais (para que outras funções acessem)
-let gameStarted = false;
-let playerName = "";
+let scene, camera, renderer, player, clock, mixer, walkAction;
+let gameRunning = false;
+let isMoving = false;
+let keys = {};
 
-function startGame() {
-    playerName = document.getElementById('username').value;
+// Setup inicial (ocorre ao carregar a página, mas não renderiza)
+function init() {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x88aaff);
+    clock = new THREE.Clock();
 
-    if (playerName.length < 3) {
-        alert("Escolha um nome de agente com pelo menos 3 letras!");
-        return;
-    }
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
 
-    // 1. Esconde o menu e mostra a interface do jogo
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('game-ui').style.display = 'block';
+    // Luzes
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+    dirLight.position.set(10, 20, 10);
+    scene.add(dirLight);
 
-    // 2. Ativa a lógica do jogo
-    gameStarted = true;
-    
-    // 3. Opcional: Bloquear o ponteiro do mouse para o jogo (melhora a experiência)
-    document.body.requestPointerLock();
+    // Chão
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshLambertMaterial({ color: 0x448844 }));
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+
+    // Player (Container)
+    player = new THREE.Group();
+    scene.add(player);
+
+    // Modelo do Soldado
+    const loader = new THREE.GLTFLoader();
+    loader.load('https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Soldier.glb', (gltf) => {
+        const soldier = gltf.scene;
+        soldier.scale.set(2, 2, 2);
+        player.add(soldier);
+        mixer = new THREE.AnimationMixer(soldier);
+        walkAction = mixer.clipAction(gltf.animations[1]);
+    });
 }
 
-// No seu loop de animação (function animate), adicione uma trava:
-function animate() {
-    if (!gameStarted) return; // Se não clicou em iniciar, não processa nada
+function startGame() {
+    const user = document.getElementById('username').value;
+    if(!user) return alert("Digite seu nome!");
+    
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('game-ui').style.display = 'block';
+    
+    gameRunning = true;
+    animate();
+}
 
+function animate() {
+    if (!gameRunning) return;
     requestAnimationFrame(animate);
     const delta = clock.getDelta();
 
-    updateMovement();
-    updateCamera();
-    
-    // Se você já criou o arquivo enemies.js:
-    if (typeof updateEnemies === "function") {
-        updateEnemies(player.position);
-    }
+    // Movimentação Simples
+    if (keys['w']) player.translateZ(0.8);
+    if (keys['s']) player.translateZ(-0.4);
+    if (keys['a']) player.rotation.y += 0.05;
+    if (keys['d']) player.rotation.y -= 0.05;
 
-    if (mixer && walkAction) {
-        walkAction.paused = !isMoving;
-        if (isMoving) walkAction.setEffectiveTimeScale(currentSpeed * 2.0);
-        mixer.update(delta);
-    }
+    // Câmera segue player
+    const camOffset = new THREE.Vector3(0, 15, -30).applyQuaternion(player.quaternion);
+    camera.position.copy(player.position).add(camOffset);
+    camera.lookAt(player.position);
+
+    if (mixer) mixer.update(delta);
+    
+    updateEnemies(scene, player.position, delta, () => {
+        alert("GAME OVER");
+        saveScore(document.getElementById('username').value, Math.floor(performance.now()/1000));
+        location.reload();
+    });
 
     renderer.render(scene, camera);
-    drawMinimap();
 }
+
+window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+window.onload = init; // Inicia o setup mas não o loop

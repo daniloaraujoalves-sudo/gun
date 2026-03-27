@@ -3,36 +3,52 @@
 <head>
     <meta charset="utf-8">
     <title>Soldier Ops 3D</title>
-    <link rel="stylesheet" href="style.css">
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: Arial, sans-serif; }
+        .overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, #1a1a2e 0%, #0f0f1a 100%);
+            display: flex; justify-content: center; align-items: center; z-index: 1000;
+        }
+        .menu-box {
+            background: rgba(20, 20, 35, 0.9); padding: 40px; border-radius: 15px;
+            border: 2px solid #00aaff; text-align: center; color: white; width: 300px;
+        }
+        input { width: 100%; padding: 12px; margin: 10px 0; background: #0a0a14; border: 1px solid #333; color: #fff; box-sizing: border-box; }
+        button { width: 100%; padding: 15px; background: #00aaff; border: none; color: white; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        #game-ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        #info { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.5); padding: 10px; pointer-events: none; }
+        #minimap { position: absolute; top: 15px; right: 15px; width: 200px; height: 200px; border: 2px solid #00aaff; background: rgba(0,0,0,0.6); }
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; border: 2px solid white; border-radius: 50%; transform: translate(-50%, -50%); opacity: 0.5; }
+    </style>
 </head>
 <body>
+
     <div id="login-screen" class="overlay">
         <div class="menu-box">
             <h1>MISSION START</h1>
             <input type="text" id="username" placeholder="NOME DO AGENTE">
-            <button onclick="startGame()">INICIAR</button>
-            <button onclick="showRank()">RANKING</button>
+            <button onclick="startGame()">INICIAR JOGO</button>
+            <button onclick="showRank()" style="background: #333;">RANKING</button>
         </div>
     </div>
 
     <div id="game-ui" style="display: none;">
-        <div id="info">W,A,S,D para mover | Mouse para girar</div>
+        <div id="info">W,A,S,D: Mover | Mouse: Girar</div>
         <div id="minimap"><canvas id="mapCanvas" width="200" height="200"></canvas></div>
         <div id="crosshair"></div>
-        <div id="score-display">KILLS: <span id="kill-count">0</span></div>
     </div>
 
     <div id="rank-screen" class="overlay" style="display: none;">
         <div class="menu-box">
             <h1>TOP AGENTES</h1>
-            <ul id="rank-list"></ul>
+            <div id="rank-list" style="text-align: left; margin: 20px 0;"></div>
             <button onclick="hideRank()">VOLTAR</button>
         </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/loaders/GLTFLoader.min.js"></script>
-    
     <script src="rank.js"></script>
     <script src="enemies.js"></script>
     <script src="game.js"></script>
