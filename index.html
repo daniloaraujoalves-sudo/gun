@@ -1,342 +1,40 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-  <meta charset="utf-8">
-  <title>Jogo 3D - Soldado com Mini-Mapa</title>
-  <style>
-    body { 
-      margin: 0; 
-      overflow: hidden; 
-      background: #000; 
-      cursor: none; 
-    }
-    #info {
-      position: absolute; top: 10px; left: 10px; color: white; 
-      background: rgba(0,0,0,0.75); padding: 15px; border-radius: 10px; 
-      font-family: Arial, sans-serif; z-index: 100; user-select: none; line-height: 1.6;
-    }
-    #minimap {
-      position: absolute;
-      top: 15px;
-      right: 15px;
-      width: 200px;
-      height: 200px;
-      border: 3px solid rgba(255,255,255,0.6);
-      border-radius: 10px;
-      background: rgba(0, 0, 0, 0.6);
-      overflow: hidden;
-      z-index: 100;
-      box-shadow: 0 0 15px rgba(0,0,0,0.8);
-    }
-    #crosshair {
-      position: absolute; top: 50%; left: 50%; width: 18px; height: 18px;
-      transform: translate(-50%, -50%); pointer-events: none; z-index: 200; opacity: 0.75;
-    }
-    #crosshair::before, #crosshair::after {
-      content: ''; position: absolute; background: #ffffff;
-      box-shadow: 0 0 8px rgba(255,255,255,0.8);
-    }
-    #crosshair::before { width: 100%; height: 2px; top: 8px; }
-    #crosshair::after { width: 2px; height: 100%; left: 8px; }
-  </style>
+    <meta charset="utf-8">
+    <title>Soldier Ops 3D</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="info">
-    W / ↑ = Frente (vel 1.0)<br>
-    S / ↓ = Trás (vel 0.25)<br>
-    A / ← = Lados (vel 0.4)<br>
-    D / → = Lados (vel 0.4)<br>
-    Clique + Arrastar = Girar câmera
-  </div>
+    <div id="login-screen" class="overlay">
+        <div class="menu-box">
+            <h1>MISSION START</h1>
+            <input type="text" id="username" placeholder="NOME DO AGENTE">
+            <button onclick="startGame()">INICIAR</button>
+            <button onclick="showRank()">RANKING</button>
+        </div>
+    </div>
 
-  <!-- Mini-mapa -->
-  <div id="minimap">
-    <canvas id="mapCanvas" width="200" height="200"></canvas>
-  </div>
+    <div id="game-ui" style="display: none;">
+        <div id="info">W,A,S,D para mover | Mouse para girar</div>
+        <div id="minimap"><canvas id="mapCanvas" width="200" height="200"></canvas></div>
+        <div id="crosshair"></div>
+        <div id="score-display">KILLS: <span id="kill-count">0</span></div>
+    </div>
 
-  <div id="crosshair"></div>
+    <div id="rank-screen" class="overlay" style="display: none;">
+        <div class="menu-box">
+            <h1>TOP AGENTES</h1>
+            <ul id="rank-list"></ul>
+            <button onclick="hideRank()">VOLTAR</button>
+        </div>
+    </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/loaders/GLTFLoader.min.js"></script>
-
-  <script>
-    // ==================== THREE.JS SETUP ====================
-    const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x88aaff, 0.0009);
-
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    document.body.appendChild(renderer.domElement);
-
-    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-    scene.add(new THREE.HemisphereLight(0x88aaff, 0x668833, 0.5));
-
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.1);
-    dirLight.position.set(100, 150, 80);
-    dirLight.castShadow = true;
-    dirLight.shadow.mapSize.width = 2048;
-    dirLight.shadow.mapSize.height = 2048;
-    scene.add(dirLight);
-
-    const skyLoader = new THREE.CubeTextureLoader();
-    scene.background = skyLoader.load([
-      'https://threejs.org/examples/textures/cube/skybox/px.jpg',
-      'https://threejs.org/examples/textures/cube/skybox/nx.jpg',
-      'https://threejs.org/examples/textures/cube/skybox/py.jpg',
-      'https://threejs.org/examples/textures/cube/skybox/ny.jpg',
-      'https://threejs.org/examples/textures/cube/skybox/pz.jpg',
-      'https://threejs.org/examples/textures/cube/skybox/nz.jpg'
-    ]);
-
-    // Chão
-    const textureLoader = new THREE.TextureLoader();
-    const groundTexture = textureLoader.load('https://threejs.org/examples/textures/terrain/grasslight-big.jpg');
-    groundTexture.wrapS = groundTexture.wrapT = THREE.RepeatWrapping;
-    groundTexture.repeat.set(60, 60);
-
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(1500, 1500),
-      new THREE.MeshLambertMaterial({ map: groundTexture })
-    );
-    ground.rotation.x = -Math.PI / 2;
-    ground.receiveShadow = true;
-    scene.add(ground);
-
-    // Obstáculos
-    for (let i = 0; i < 60; i++) {
-      const h = Math.random() * 10 + 5;
-      const box = new THREE.Mesh(
-        new THREE.BoxGeometry(8, h, 8),
-        new THREE.MeshLambertMaterial({ color: Math.random() > 0.5 ? 0x444444 : 0x8B5A2B })
-      );
-      box.position.set(Math.random()*600-300, h/2, Math.random()*600-300);
-      box.castShadow = true;
-      box.receiveShadow = true;
-      scene.add(box);
-    }
-
-    // ===================== SOLDADO =====================
-    const player = new THREE.Group();
-    scene.add(player);
-
-    let soldier = null;
-    let mixer = null;
-    let walkAction = null;
-    let isMoving = false;
-
-    const loader = new THREE.GLTFLoader();
-    loader.load('https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Soldier.glb', 
-      (gltf) => {
-        soldier = gltf.scene;
-        soldier.scale.set(2.2, 2.2, 2.2);
-        soldier.position.y = 0;
-        soldier.traverse((child) => {
-          if (child.isMesh) child.castShadow = child.receiveShadow = true;
-        });
-        player.add(soldier);
-
-        mixer = new THREE.AnimationMixer(soldier);
-        const animations = gltf.animations;
-        walkAction = mixer.clipAction(animations.find(a => a.name === 'Walk') || animations[1]);
-        walkAction.setEffectiveTimeScale(1.2);
-        walkAction.play();
-        walkAction.paused = true;
-      }
-    );
-
-    // ===================== MINI-MAPA =====================
-    const mapCanvas = document.getElementById('mapCanvas');
-    const ctx = mapCanvas.getContext('2d');
-    const mapSize = 200;
-    const worldSize = 800; // área visível no minimapa (±400 unidades)
-
-    function drawMinimap() {
-      ctx.clearRect(0, 0, mapSize, mapSize);
-
-      // Fundo do mapa
-      ctx.fillStyle = 'rgba(20, 40, 20, 0.8)';
-      ctx.fillRect(0, 0, mapSize, mapSize);
-
-      // Grade leve
-      ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-      ctx.lineWidth = 1;
-      for (let i = 1; i < 5; i++) {
-        const x = (mapSize / 5) * i;
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, mapSize);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(0, x);
-        ctx.lineTo(mapSize, x);
-        ctx.stroke();
-      }
-
-      if (!soldier) return;
-
-      // Posição do jogador no minimapa
-      const mapX = mapSize / 2 + (player.position.x / worldSize) * mapSize;
-      const mapZ = mapSize / 2 + (player.position.z / worldSize) * mapSize;
-
-      // Desenha o soldado (ponto azul)
-      ctx.fillStyle = '#00aaff';
-      ctx.beginPath();
-      ctx.arc(mapX, mapZ, 6, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Seta indicando direção que o soldado está olhando
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(mapX, mapZ);
-
-      const dirX = Math.sin(soldier.rotation.y) * 18;
-      const dirZ = Math.cos(soldier.rotation.y) * 18;
-
-      ctx.lineTo(mapX + dirX, mapZ + dirZ);
-      ctx.stroke();
-
-      // Pequena borda ao redor do ponto
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(mapX, mapZ, 8, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-
-    // ===================== CONTROLES =====================
-    const keys = {};
-    let targetYaw = 0;
-    let targetPitch = -32;
-    let cameraYaw = 0;
-    let cameraPitch = -32;
-
-    window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
-    window.addEventListener('keyup',   e => keys[e.key.toLowerCase()] = false);
-
-    let isMouseDown = false;
-    document.addEventListener('mousedown', () => isMouseDown = true);
-    document.addEventListener('mouseup',   () => isMouseDown = false);
-    document.addEventListener('mouseleave',() => isMouseDown = false);
-
-    const mouseSensitivity = 0.16;
-
-    document.addEventListener('mousemove', e => {
-      if (!isMouseDown) return;
-      targetYaw   -= e.movementX * mouseSensitivity;
-      targetPitch -= e.movementY * mouseSensitivity;
-      targetPitch = Math.max(-78, Math.min(65, targetPitch));
-    });
-
-    let currentSpeed = 0;
-
-    const speedForward  = 1.0;
-    const speedSide     = 0.4;
-    const speedBackward = 0.25;
-
-    const acceleration = 0.08;
-    const deceleration = 0.10;
-
-    function updateMovement() {
-      let forward = 0, strafe = 0;
-
-      if (keys['w'] || keys['arrowup']) forward = 1;
-      if (keys['s'] || keys['arrowdown']) forward = -1;
-      if (keys['a'] || keys['arrowleft']) strafe = -1;
-      if (keys['d'] || keys['arrowright']) strafe = 1;
-
-      let targetSpeed = 0;
-      if (forward > 0) targetSpeed = speedForward;
-      else if (forward < 0) targetSpeed = speedBackward;
-      else if (strafe !== 0) targetSpeed = speedSide;
-
-      if (forward !== 0 && strafe !== 0) targetSpeed *= 0.7071;
-
-      if (targetSpeed > currentSpeed) currentSpeed += acceleration;
-      else currentSpeed = Math.max(currentSpeed - deceleration, 0);
-
-      const cameraAngle = targetYaw * Math.PI / 180;
-
-      const moveX = Math.sin(cameraAngle) * forward - Math.cos(cameraAngle) * strafe;
-      const moveZ = Math.cos(cameraAngle) * forward + Math.sin(cameraAngle) * strafe;
-
-      isMoving = currentSpeed > 0.05;
-
-      if (currentSpeed > 0.02) {
-        player.position.x += moveX * currentSpeed;
-        player.position.z += moveZ * currentSpeed;
-      }
-    }
-
-    function updateCamera() {
-      cameraYaw   = cameraYaw * 0.86 + targetYaw * 0.14;
-      cameraPitch = cameraPitch * 0.89 + targetPitch * 0.11;
-
-      const distance = 38;
-      const height = 18;
-      const ry = cameraYaw * Math.PI / 180;
-      const rp = cameraPitch * Math.PI / 180;
-
-      camera.position.x = player.position.x - distance * Math.sin(ry) * Math.cos(rp);
-      camera.position.z = player.position.z - distance * Math.cos(ry) * Math.cos(rp);
-      camera.position.y = player.position.y + height + distance * Math.sin(rp);
-
-      camera.lookAt(player.position.x, player.position.y + 5, player.position.z);
-
-      if (soldier) {
-        soldier.rotation.y = cameraYaw * Math.PI / 180 + Math.PI;
-      }
-    }
-
-    const clock = new THREE.Clock();
-
-    function animate() {
-      requestAnimationFrame(animate);
-      const delta = clock.getDelta();
-
-      updateMovement();
-      updateCamera();
-
-      if (mixer && walkAction) {
-        walkAction.paused = !isMoving;
-        if (isMoving) walkAction.setEffectiveTimeScale(currentSpeed * 2.0);
-        mixer.update(delta);
-      }
-
-      renderer.render(scene, camera);
-      drawMinimap();        // atualiza o mini-mapa a cada frame
-    }
-
-    animate();
-
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
-  </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/loaders/GLTFLoader.min.js"></script>
+    
+    <script src="rank.js"></script>
+    <script src="enemies.js"></script>
+    <script src="game.js"></script>
 </body>
 </html>
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="utf-8">
-    <title>Mapa Estilo Valorant - Somente Cenário</title>
-    <style>
-        body { margin: 0; overflow: hidden; background: #0b131e; }
-        canvas { display: block; }
-    </style>
-</head>
-<body>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-
-<script>
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0b131e);
-    scene.fog = new THREE.Fog(0x0b131e, 20, 400);
-
-    const camera = new THREE.PerspectiveCamera(75,
